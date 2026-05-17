@@ -11,12 +11,29 @@ env:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v4
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
+      - uses: actions/checkout@v4
+      - name: Build
+        run: cargo build --verbose
+      - name: Run tests
+        run: cargo test --verbose
+
+  docker:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Login to Railway
+        uses: docker/login-action@v3
+        with:
+          registry: registry.railway.app
+          username: ${{ secrets.RAILWAY_TOKEN }}
+          password: ${{ secrets.RAILWAY_TOKEN }}
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: registry.railway.app/${{ secrets.RAILWAY_SERVICE_ID }}:latest
