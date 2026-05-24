@@ -17,6 +17,7 @@ type AppState = Arc<SqlitePool>;
 #[derive(Deserialize)]
 pub struct CreateUserRequest {
     pub name: String,
+    pub lastname: String,
     pub email: String,
     pub password: String,
 }
@@ -29,9 +30,32 @@ async fn user_create_handler(
     State(pool): State<AppState>,
     Json(payload): Json<CreateUserRequest>,
 ) -> Result<String, (StatusCode, String)> {
-    crate::db::user::create_user(&pool, &payload.name, &payload.email, &payload.password)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    crate::db::user::user_create(
+        &pool,
+        &payload.name,
+        &payload.lastname,
+        &payload.email,
+        &payload.password,
+    )
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok("User created".to_string())
+}
+
+async fn user_update_handler(
+    State(pool): State<AppState>,
+    Json(payload): Json<CreateUserRequest>,
+) -> Result<String, (StatusCode, String)> {
+    crate::db::user::user_update(
+        &pool,
+        &payload.name,
+        &payload.lastname,
+        &payload.email,
+        &payload.password,
+    )
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     Ok("User created".to_string())
 }
@@ -46,7 +70,8 @@ async fn main() {
 
     let app = Router::new()
         .route("/api/test", get(test))
-        .route("/api/create-user", post(user_create_handler))
+        .route("/api/user/create", post(user_create_handler))
+        .route("/api/user/update", post(user_update_handler))
         .with_state(state)
         .layer(CorsLayer::permissive());
 
