@@ -1,25 +1,39 @@
-use axum::{Router, extract::State, routing::get};
+use axum::{
+    Router,
+    extract::{Json, State},
+    http::StatusCode,
+    routing::{get, post},
+};
+use serde::Deserialize;
 use sqlx::sqlite::SqlitePool;
 use std::sync::Arc;
 use tower_http::cors::CorsLayer;
 
-use crate::db::db;
 mod db;
+use crate::db::db;
 
 type AppState = Arc<SqlitePool>;
+
+#[derive(Deserialize)]
+pub struct CreateUserRequest {
+    pub name: String,
+    pub email: String,
+    pub password: String,
+}
 
 async fn test() -> &'static str {
     "Hello from Backend!"
 }
 
-async fn create_user(State(pool): State<AppState>) -> String {
-    sqlx::query("INSERT INTO users (name) VALUES (?)")
-        .bind("test user")
-        .execute(&*pool)
+async fn user_create_handler(
+    State(pool): State<AppState>,
+    Json(payload): Json<CreateUserRequest>,
+) -> Result<String, (StatusCode, String)> {
+    crate::db::user::create_user(&pool, &payload.name, &payload.email, &payload.password)
         .await
-        .unwrap();
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    "User created".to_string()
+    Ok("User created".to_string())
 }
 
 #[tokio::main]
@@ -32,7 +46,7 @@ async fn main() {
 
     let app = Router::new()
         .route("/api/test", get(test))
-        .route("/api/create-user", get(create_user))
+        .route("/api/create-user", post(user_create_handler))
         .with_state(state)
         .layer(CorsLayer::permissive());
 
