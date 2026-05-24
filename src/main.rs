@@ -22,6 +22,7 @@ async fn create_user(State(pool): State<AppState>) -> String {
 #[tokio::main]
 async fn main() {
     let pool = SqlitePool::connect("sqlite::memory:").await.unwrap();
+
     sqlx::query(
         r#"
     CREATE TABLE users (
