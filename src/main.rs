@@ -3,6 +3,9 @@ use sqlx::sqlite::SqlitePool;
 use std::sync::Arc;
 use tower_http::cors::CorsLayer;
 
+use crate::db::db;
+mod db;
+
 type AppState = Arc<SqlitePool>;
 
 async fn test() -> &'static str {
@@ -23,18 +26,8 @@ async fn create_user(State(pool): State<AppState>) -> String {
 async fn main() {
     let pool = SqlitePool::connect("sqlite::memory:").await.unwrap();
 
-    sqlx::query(
-        r#"
-    CREATE TABLE users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL
-    )
-    "#,
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
-
+    //  WARNING: this will crash the program probebly not the best of ideas but will do for now
+    db(&pool).await.unwrap();
     let state = Arc::new(pool);
 
     let app = Router::new()
