@@ -1,4 +1,5 @@
-use crate::handlers::FullUserRequest;
+use crate::handlers::{CheckUserRequest, ExistsResponse, FullUserRequest};
+
 use axum::{
     extract::{Json, State},
     http::StatusCode,
@@ -14,7 +15,7 @@ pub async fn user_create_handler(
 ) -> Result<String, (StatusCode, String)> {
     crate::db::user::user_create(
         &pool,
-        &payload.name,
+        &payload.firstname,
         &payload.lastname,
         &payload.email,
         &payload.password,
@@ -31,7 +32,7 @@ pub async fn user_update_handler(
 ) -> Result<String, (StatusCode, String)> {
     crate::db::user::user_update(
         &pool,
-        &payload.name,
+        &payload.firstname,
         &payload.lastname,
         &payload.email,
         &payload.password,
@@ -39,5 +40,17 @@ pub async fn user_update_handler(
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    Ok("USer updated".to_string())
+    Ok("User updated".to_string())
+}
+
+pub async fn user_exists_handler(
+    State(pool): State<AppState>,
+    Json(payload): Json<CheckUserRequest>,
+) -> Result<Json<ExistsResponse>, (StatusCode, String)> {
+    let user = crate::db::user::user_exists(&pool, &payload.email, &payload.password)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    Ok(Json(ExistsResponse {
+        exists: user.is_some(),
+    }))
 }
