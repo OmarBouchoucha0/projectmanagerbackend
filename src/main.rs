@@ -19,6 +19,7 @@ async fn test() -> &'static str {
 
 #[tokio::main]
 async fn main() {
+    tracing_subscriber::fmt::init();
     let pool = SqlitePool::connect("sqlite::memory:").await.unwrap();
 
     //  WARNING: this will crash the program probebly not the best of ideas but will do for now

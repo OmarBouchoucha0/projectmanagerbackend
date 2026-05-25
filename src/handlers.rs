@@ -1,4 +1,5 @@
 pub mod user;
+use axum::response::IntoResponse;
 use axum::{
     extract::{Json, State},
     http::StatusCode,
@@ -34,7 +35,7 @@ pub struct ExistsResponse {
 pub async fn user_create(
     State(pool): State<AppState>,
     Json(payload): Json<FullUserRequest>,
-) -> Result<String, (StatusCode, String)> {
+) -> impl IntoResponse {
     user_create_handler(State(pool), Json(payload)).await
 }
 

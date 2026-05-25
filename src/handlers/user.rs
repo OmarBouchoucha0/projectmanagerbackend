@@ -1,5 +1,6 @@
 use crate::handlers::{CheckUserRequest, ExistsResponse, FullUserRequest};
 
+use axum::response::IntoResponse;
 use axum::{
     extract::{Json, State},
     http::StatusCode,
@@ -9,21 +10,24 @@ use std::sync::Arc;
 
 type AppState = Arc<SqlitePool>;
 
+// TODO : we are no handling all the cases here will habe to fix
 pub async fn user_create_handler(
     State(pool): State<AppState>,
     Json(payload): Json<FullUserRequest>,
-) -> Result<String, (StatusCode, String)> {
-    crate::db::user::user_create(
+) -> impl IntoResponse {
+    let query = crate::db::user::user_create(
         &pool,
         &payload.firstname,
         &payload.lastname,
         &payload.email,
         &payload.password,
     )
-    .await
-    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    .await;
 
-    Ok("User created".to_string())
+    match query {
+        Ok(_result) => (StatusCode::OK, "User created successfully").into_response(),
+        Err(_e) => (StatusCode::INTERNAL_SERVER_ERROR, "Something went wrong").into_response(),
+    }
 }
 
 pub async fn user_update_handler(
@@ -39,7 +43,6 @@ pub async fn user_update_handler(
     )
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-
     Ok("User updated".to_string())
 }
 
