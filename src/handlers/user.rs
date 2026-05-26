@@ -11,7 +11,6 @@ use std::sync::Arc;
 
 type AppState = Arc<SqlitePool>;
 
-// TODO : we are not handling all the cases here will habe to fix
 pub async fn user_create_handler(
     State(pool): State<AppState>,
     Json(payload): Json<FullUserRequest>,
@@ -25,15 +24,7 @@ pub async fn user_create_handler(
     )
     .await;
     match query {
-        Ok(row) => {
-            let user_data = FullUserResponse {
-                id: row.get("id"),
-                firstname: row.get("firstname"),
-                lastname: row.get("lastname"),
-                email: row.get("email"),
-            };
-            (StatusCode::OK, Json(user_data)).into_response()
-        }
+        Ok(_) => (StatusCode::CREATED, "User created").into_response(),
         Err(e) => {
             // error 2097 is sqllite error for unique constraint failure
             if let Some(sqlx::Error::Database(db_err)) = e.downcast_ref::<sqlx::Error>()
@@ -91,6 +82,7 @@ pub async fn user_login_handler(
     let user = crate::db::user::user_exists(&pool, &payload.email, &payload.password).await;
 
     match user {
+        //TODO:: add all the nessecary db fetches here
         Ok(row) => {
             let user_data = FullUserResponse {
                 id: row.get("id"),
@@ -103,6 +95,46 @@ pub async fn user_login_handler(
         Err(e) => {
             if let Some(sqlx::Error::RowNotFound) = e.downcast_ref::<sqlx::Error>() {
                 return (StatusCode::UNAUTHORIZED, "Invalid email or password").into_response();
+            }
+            tracing::error!("Database error during login check: {:?}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Something went wrong").into_response()
+        }
+    }
+}
+
+pub async fn user_register_handler(
+    State(pool): State<AppState>,
+    Json(payload): Json<FullUserRequest>,
+) -> impl IntoResponse {
+    let query = crate::db::user::user_create(
+        &pool,
+        &payload.firstname,
+        &payload.lastname,
+        &payload.email,
+        &payload.password,
+    )
+    .await;
+    match query {
+        //TODO:: add all the nessecary db fetches here
+        Ok(row) => {
+            let user_data = FullUserResponse {
+                id: row.get("id"),
+                firstname: row.get("firstname"),
+                lastname: row.get("lastname"),
+                email: row.get("email"),
+            };
+            (StatusCode::OK, Json(user_data)).into_response()
+        }
+        Err(e) => {
+            // error 2097 is sqllite error for unique constraint failure
+            if let Some(sqlx::Error::Database(db_err)) = e.downcast_ref::<sqlx::Error>()
+                && db_err.code().as_deref() == Some("2067")
+            {
+                return (
+                    StatusCode::CONFLICT,
+                    "An account with this email already exists.",
+                )
+                    .into_response();
             }
             tracing::error!("Database error during login check: {:?}", e);
             (StatusCode::INTERNAL_SERVER_ERROR, "Something went wrong").into_response()
