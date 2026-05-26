@@ -48,17 +48,22 @@ pub async fn user_create(
     lastname: &str,
     email: &str,
     password: &str,
-) -> Result<SqliteQueryResult> {
+) -> Result<SqliteRow> {
     let password_hash = hash_password(password).map_err(|e| anyhow::anyhow!(e.to_string()))?;
-    let query =
-        sqlx::query("INSERT INTO users (firstname,lastname,email,passwordHash) VALUES (?,?,?,?)")
-            .bind(firstname)
-            .bind(lastname)
-            .bind(email)
-            .bind(password_hash)
-            .execute(pool)
-            .await?;
-    Ok(query)
+    let row = sqlx::query(
+        r#"
+        INSERT INTO users (firstname, lastname, email, passwordHash) 
+        VALUES (?, ?, ?, ?) 
+        RETURNING *
+        "#,
+    )
+    .bind(firstname)
+    .bind(lastname)
+    .bind(email)
+    .bind(password_hash)
+    .fetch_one(pool)
+    .await?;
+    Ok(row)
 }
 
 pub async fn user_update(

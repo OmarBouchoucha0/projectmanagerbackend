@@ -24,10 +24,27 @@ pub async fn user_create_handler(
         &payload.password,
     )
     .await;
-
     match query {
-        Ok(_result) => (StatusCode::OK, "User created successfully").into_response(),
+        Ok(row) => {
+            let user_data = FullUserResponse {
+                id: row.get("id"),
+                firstname: row.get("firstname"),
+                lastname: row.get("lastname"),
+                email: row.get("email"),
+            };
+            (StatusCode::OK, Json(user_data)).into_response()
+        }
         Err(e) => {
+            // error 2097 is sqllite error for unique constraint failure
+            if let Some(sqlx::Error::Database(db_err)) = e.downcast_ref::<sqlx::Error>()
+                && db_err.code().as_deref() == Some("2067")
+            {
+                return (
+                    StatusCode::CONFLICT,
+                    "An account with this email already exists.",
+                )
+                    .into_response();
+            }
             tracing::error!("Database error during login check: {:?}", e);
             (StatusCode::INTERNAL_SERVER_ERROR, "Something went wrong").into_response()
         }

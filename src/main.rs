@@ -19,13 +19,14 @@ async fn test() -> &'static str {
 
 #[tokio::main]
 async fn main() {
+    // debug loggin
+    dotenvy::dotenv().ok();
     tracing_subscriber::fmt::init();
-    let pool = SqlitePool::connect("sqlite::memory:").await.unwrap();
 
+    let pool = SqlitePool::connect("sqlite::memory:").await.unwrap();
     //  WARNING: this will crash the program probebly not the best of ideas but will do for now
     db(&pool).await.unwrap();
     let state = Arc::new(pool);
-
     let app = Router::new()
         .route("/api/test", get(test))
         .route("/api/user/create", post(user_create))
@@ -34,10 +35,7 @@ async fn main() {
         .route("/api/user/login", post(user_login))
         .with_state(state)
         .layer(CorsLayer::permissive());
-
     let listener = tokio::net::TcpListener::bind("0.0.0.0:5000").await.unwrap();
-
     println!("Listening on http://localhost:5000");
-
     axum::serve(listener, app).await.unwrap();
 }
