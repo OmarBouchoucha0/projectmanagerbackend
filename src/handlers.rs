@@ -27,11 +27,6 @@ pub struct CheckUserRequest {
     pub password: String,
 }
 
-#[derive(Serialize)]
-pub struct ExistsResponse {
-    exists: bool,
-}
-
 pub async fn user_create(
     State(pool): State<AppState>,
     Json(payload): Json<FullUserRequest>,
@@ -49,6 +44,6 @@ pub async fn user_update(
 pub async fn user_exists(
     State(pool): State<AppState>,
     Json(payload): Json<CheckUserRequest>,
-) -> Result<Json<ExistsResponse>, (StatusCode, String)> {
+) -> impl IntoResponse {
     user_exists_handler(State(pool), Json(payload)).await
 }

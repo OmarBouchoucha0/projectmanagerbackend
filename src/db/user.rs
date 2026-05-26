@@ -1,10 +1,13 @@
 use anyhow::Result;
 use argon2::{
-    Argon2,
+    Argon2, PasswordHash, PasswordVerifier,
     password_hash::{PasswordHasher, SaltString},
 };
 use rand::rngs::OsRng;
-use sqlx::{FromRow, Pool, Sqlite, sqlite::SqliteQueryResult};
+use sqlx::{
+    FromRow, Pool, Row, Sqlite,
+    sqlite::{SqliteQueryResult, SqliteRow},
+};
 
 #[derive(FromRow)]
 pub struct User {
@@ -81,17 +84,23 @@ pub async fn user_update(
     Ok(query)
 }
 
-pub async fn user_exists(pool: &Pool<Sqlite>, email: &str, password: &str) -> Result<sqlliteRow> {
-    let password_hash = hash_password(password).map_err(|e| anyhow::anyhow!(e.to_string()))?;
+pub async fn user_exists(pool: &Pool<Sqlite>, email: &str, password: &str) -> Result<SqliteRow> {
     let query = sqlx::query(
         r#"
         SELECT * from users 
-        WHERE email = ? and passwordHash = ?
+        WHERE email = ? 
         "#,
     )
     .bind(email)
-    .bind(password_hash)
     .fetch_one(pool)
     .await?;
+    let stored_hash: String = query.try_get("passwordHash")?;
+    let parsed_hash = PasswordHash::new(&stored_hash)
+        .map_err(|e| anyhow::anyhow!("Failed to parse password hash: {}", e))?;
+
+    Argon2::default()
+        .verify_password(password.as_bytes(), &parsed_hash)
+        .map_err(|_| anyhow::anyhow!("Invalid password"))?;
+
     Ok(query)
 }

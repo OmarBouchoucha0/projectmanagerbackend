@@ -1,4 +1,4 @@
-use crate::handlers::{CheckUserRequest, ExistsResponse, FullUserRequest};
+use crate::handlers::{CheckUserRequest, FullUserRequest};
 
 use axum::response::IntoResponse;
 use axum::{
@@ -26,7 +26,10 @@ pub async fn user_create_handler(
 
     match query {
         Ok(_result) => (StatusCode::OK, "User created successfully").into_response(),
-        Err(_e) => (StatusCode::INTERNAL_SERVER_ERROR, "Something went wrong").into_response(),
+        Err(e) => {
+            tracing::error!("Database error during login check: {:?}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Something went wrong").into_response()
+        }
     }
 }
 
@@ -49,11 +52,17 @@ pub async fn user_update_handler(
 pub async fn user_exists_handler(
     State(pool): State<AppState>,
     Json(payload): Json<CheckUserRequest>,
-) -> Result<Json<ExistsResponse>, (StatusCode, String)> {
-    let user = crate::db::user::user_exists(&pool, &payload.email, &payload.password)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-    Ok(Json(ExistsResponse {
-        exists: user.is_some(),
-    }))
+) -> impl IntoResponse {
+    let user = crate::db::user::user_exists(&pool, &payload.email, &payload.password).await;
+    match user {
+        Ok(_) => (StatusCode::OK, "Login successful!").into_response(),
+        Err(e) => {
+            if let Some(sqlx::Error::RowNotFound) = e.downcast_ref::<sqlx::Error>() {
+                return (StatusCode::UNAUTHORIZED, "Invalid email or password").into_response();
+            }
+
+            tracing::error!("Database error during login check: {:?}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Something went wrong").into_response()
+        }
+    }
 }
