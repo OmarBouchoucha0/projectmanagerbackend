@@ -10,7 +10,7 @@ mod db;
 mod handlers;
 use crate::{
     db::db,
-    handlers::{user_create, user_exists, user_update},
+    handlers::{user_create, user_exists, user_login, user_update},
 };
 
 async fn test() -> &'static str {
@@ -31,6 +31,7 @@ async fn main() {
         .route("/api/user/create", post(user_create))
         .route("/api/user/update", post(user_update))
         .route("/api/user/exists", post(user_exists))
+        .route("/api/user/login", post(user_login))
         .with_state(state)
         .layer(CorsLayer::permissive());
 

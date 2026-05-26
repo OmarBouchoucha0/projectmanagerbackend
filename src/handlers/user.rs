@@ -1,16 +1,17 @@
-use crate::handlers::{CheckUserRequest, FullUserRequest};
+use crate::handlers::{CheckUserRequest, FullUserRequest, FullUserResponse};
 
 use axum::response::IntoResponse;
 use axum::{
     extract::{Json, State},
     http::StatusCode,
 };
+use sqlx::Row;
 use sqlx::sqlite::SqlitePool;
 use std::sync::Arc;
 
 type AppState = Arc<SqlitePool>;
 
-// TODO : we are no handling all the cases here will habe to fix
+// TODO : we are not handling all the cases here will habe to fix
 pub async fn user_create_handler(
     State(pool): State<AppState>,
     Json(payload): Json<FullUserRequest>,
@@ -55,12 +56,37 @@ pub async fn user_exists_handler(
 ) -> impl IntoResponse {
     let user = crate::db::user::user_exists(&pool, &payload.email, &payload.password).await;
     match user {
-        Ok(_) => (StatusCode::OK, "Login successful!").into_response(),
+        Ok(_) => (StatusCode::OK, "User Exists").into_response(),
         Err(e) => {
             if let Some(sqlx::Error::RowNotFound) = e.downcast_ref::<sqlx::Error>() {
                 return (StatusCode::UNAUTHORIZED, "Invalid email or password").into_response();
             }
+            tracing::error!("Database error during login check: {:?}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Something went wrong").into_response()
+        }
+    }
+}
 
+pub async fn user_login_handler(
+    State(pool): State<AppState>,
+    Json(payload): Json<CheckUserRequest>,
+) -> impl IntoResponse {
+    let user = crate::db::user::user_exists(&pool, &payload.email, &payload.password).await;
+
+    match user {
+        Ok(row) => {
+            let user_data = FullUserResponse {
+                id: row.get("id"),
+                firstname: row.get("firstname"),
+                lastname: row.get("lastname"),
+                email: row.get("email"),
+            };
+            (StatusCode::OK, Json(user_data)).into_response()
+        }
+        Err(e) => {
+            if let Some(sqlx::Error::RowNotFound) = e.downcast_ref::<sqlx::Error>() {
+                return (StatusCode::UNAUTHORIZED, "Invalid email or password").into_response();
+            }
             tracing::error!("Database error during login check: {:?}", e);
             (StatusCode::INTERNAL_SERVER_ERROR, "Something went wrong").into_response()
         }

@@ -9,7 +9,7 @@ use sqlx::sqlite::SqlitePool;
 use std::sync::Arc;
 
 use crate::handlers::user::user_update_handler;
-use crate::handlers::user::{user_create_handler, user_exists_handler};
+use crate::handlers::user::{user_create_handler, user_exists_handler, user_login_handler};
 
 type AppState = Arc<SqlitePool>;
 
@@ -25,6 +25,14 @@ pub struct FullUserRequest {
 pub struct CheckUserRequest {
     pub email: String,
     pub password: String,
+}
+
+#[derive(Serialize)]
+pub struct FullUserResponse {
+    pub id: u32,
+    pub firstname: String,
+    pub lastname: String,
+    pub email: String,
 }
 
 pub async fn user_create(
@@ -46,4 +54,11 @@ pub async fn user_exists(
     Json(payload): Json<CheckUserRequest>,
 ) -> impl IntoResponse {
     user_exists_handler(State(pool), Json(payload)).await
+}
+
+pub async fn user_login(
+    State(pool): State<AppState>,
+    Json(payload): Json<CheckUserRequest>,
+) -> impl IntoResponse {
+    user_login_handler(State(pool), Json(payload)).await
 }
