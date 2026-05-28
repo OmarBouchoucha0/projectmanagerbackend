@@ -8,8 +8,8 @@ use serde::{Deserialize, Serialize};
 use sqlx::sqlite::SqlitePool;
 use std::sync::Arc;
 
-use crate::handlers::user::user_update_handler;
 use crate::handlers::user::{user_create_handler, user_exists_handler, user_login_handler};
+use crate::handlers::user::{user_register_handler, user_update_handler};
 
 type AppState = Arc<SqlitePool>;
 
@@ -61,4 +61,11 @@ pub async fn user_login(
     Json(payload): Json<CheckUserRequest>,
 ) -> impl IntoResponse {
     user_login_handler(State(pool), Json(payload)).await
+}
+
+pub async fn user_register(
+    State(pool): State<AppState>,
+    Json(payload): Json<FullUserRequest>,
+) -> impl IntoResponse {
+    user_register_handler(State(pool), Json(payload)).await
 }

@@ -123,7 +123,7 @@ pub async fn user_register_handler(
                 lastname: row.get("lastname"),
                 email: row.get("email"),
             };
-            (StatusCode::OK, Json(user_data)).into_response()
+            (StatusCode::CREATED, Json(user_data)).into_response()
         }
         Err(e) => {
             // error 2097 is sqllite error for unique constraint failure
